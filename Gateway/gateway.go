@@ -16,13 +16,51 @@ type Contract struct {
 	DateSigned time.Time
 }
 
+type RevenueRecognitions struct {
+	Contract     int64
+	Amount       float64
+	RecognizedOn time.Time
+}
+
 //// TODO: asOf to date
-//func (g *Gateway) FindRecognitionsFor(contractID int64, asOf string) ResultSet {
-//	// findrecognitionstatemet渡してpreparedStatement作る
-//	fmt.Println(contractID)
-//	fmt.Println(asOf)
-//	return ResultSet{}
-//}
+func (g *Gateway) FindRecognitionsFor(contractID int64, asOf string) (*[]RevenueRecognitions, error) {
+	// findrecognitionstatemet渡してpreparedStatement作る
+	findRecognitionsStatement:= `
+SELECT amount
+FROM
+revenueRecognitions
+WHERE contract = ?
+AND recognizedOn <= ?;
+`
+	rows, err := g.DB.Query(findRecognitionsStatement, contractID, asOf)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var (
+		contract int64
+		amount float64
+		recognizedOn time.Time
+	)
+
+	var recognitions []RevenueRecognitions
+
+	for rows.Next() {
+		if err := rows.Scan(&contract, &amount, &recognizedOn); err != nil {
+			return nil, err
+		}
+		tmp := RevenueRecognitions{
+			Contract:contract,
+			Amount:amount,
+			RecognizedOn:recognizedOn,
+		}
+
+		recognitions = append(recognitions, tmp)
+	}
+
+	return &recognitions, nil
+}
 
 func (g *Gateway) FindContract(contractID int64) (*[]Contract, error) {
 
