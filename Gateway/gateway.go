@@ -3,6 +3,8 @@ package Gateway
 import (
 	"database/sql"
 	"time"
+
+	"github.com/SRkuma/design_pattern/Money"
 )
 
 type Gateway struct {
@@ -25,7 +27,7 @@ type RevenueRecognitions struct {
 //// TODO: asOf to date
 func (g *Gateway) FindRecognitionsFor(contractID int64, asOf string) (*[]RevenueRecognitions, error) {
 	// findrecognitionstatemet渡してpreparedStatement作る
-	findRecognitionsStatement:= `
+	findRecognitionsStatement := `
 SELECT amount
 FROM
 revenueRecognitions
@@ -39,8 +41,8 @@ AND recognizedOn <= ?;
 	defer rows.Close()
 
 	var (
-		contract int64
-		amount float64
+		contract     int64
+		amount       float64
 		recognizedOn time.Time
 	)
 
@@ -51,9 +53,9 @@ AND recognizedOn <= ?;
 			return nil, err
 		}
 		tmp := RevenueRecognitions{
-			Contract:contract,
-			Amount:amount,
-			RecognizedOn:recognizedOn,
+			Contract:     contract,
+			Amount:       amount,
+			RecognizedOn: recognizedOn,
 		}
 
 		recognitions = append(recognitions, tmp)
@@ -100,4 +102,30 @@ AND c.product = p.ID;
 	}
 
 	return &contracts, nil
+}
+
+//// TODO: asOf to date
+func (g *Gateway) InsertRecognition(contractID int64, amount Money.Money, asOf string) (*int64, error) {
+
+	tx, err := g.DB.Begin()
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+
+	insertRecognitionStatement := `
+INSERT INTO revenueRecognitions VALUES (?,?,?)
+`
+
+	result, err := g.DB.Exec(insertRecognitionStatement, contractID, amount, asOf)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return &id, nil
 }
